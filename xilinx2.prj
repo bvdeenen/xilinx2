@@ -1,0 +1,3 @@
+vhdl work "kcpsm3.vhd"
+vhdl work "picocode.vhd"
+vhdl work "xilinx2.vhd"
