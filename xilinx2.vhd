@@ -134,6 +134,7 @@ signal   lcd_output_data : std_logic_vector(7 downto 0);
 --
 -- Start of circuit description
 --
+
 begin
   --
   --
@@ -221,6 +222,25 @@ begin
 
     end if; 
   end process interrupt_control;
+  
+  led_light: process(event_1hz)
+  	 variable l : std_logic_vector(7 downto 0) := "00000001";
+	 variable pos : integer := 0;
+
+  begin
+	if event_1hz'event and event_1hz = '1' then
+		if ( pos = 7 ) then
+			pos := 0;
+		else
+			pos := pos + 1;
+		end if;
+		
+		l := "00000000";
+		l(pos) := '1';
+		led <= l;
+   end if;
+  
+  end process led_light;
 
   --
   ----------------------------------------------------------------------------------------------------------------------------------
@@ -269,9 +289,9 @@ begin
 
         -- Write to LEDs at address 80 hex.
 
-        if port_id(7)='1' then
-          led <= out_port;
-        end if;
+--        if port_id(7)='1' then
+--          led <= out_port;
+--        end if;
 
         -- 8-bit LCD data output address 40 hex.
 
