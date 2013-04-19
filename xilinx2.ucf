@@ -18,6 +18,10 @@ TIMESPEC TS_clk = PERIOD "clk" 20 ns HIGH 50%;
 # soldered 50MHz Clock.
 # 
 NET "clk" LOC = "E12" |IOSTANDARD = LVTTL;
+
+NET "BTN_EAST"	LOC ="T16" |IOSTANDARD = LVTTL | PULLDOWN;
+NET "BTN_WEST"	LOC = "U15" |IOSTANDARD = LVTTL | PULLDOWN;
+
 #
 #
 # Simple LEDs 

@@ -46,6 +46,9 @@ use unisim.vcomponents.all;
 --
 entity xilinx2 is
     Port (             led : out std_logic_vector(7 downto 0);
+							  BTN_EAST: in std_logic;
+							  BTN_WEST: in std_logic;
+					  
                      lcd_d : inout std_logic_vector(7 downto 0);
                     lcd_rs : out std_logic;
                     lcd_rw : out std_logic;
@@ -135,6 +138,7 @@ signal   lcd_output_data : std_logic_vector(7 downto 0);
 -- Start of circuit description
 --
 
+signal led_direction : std_logic := '0';
 begin
   --
   --
@@ -229,18 +233,39 @@ begin
 
   begin
 	if event_1hz'event and event_1hz = '1' then
-		if ( pos = 7 ) then
-			pos := 0;
+		if led_direction = '0' then
+			if ( pos = 7 ) then
+				pos := 0;
+			else
+				pos := pos + 1;
+			end if;
 		else
-			pos := pos + 1;
+			if ( pos = 0 ) then
+				pos := 7;
+			else
+				pos := pos - 1;
+			end if;
 		end if;
 		
 		l := "00000000";
 		l(pos) := '1';
 		led <= l;
    end if;
-  
   end process led_light;
+  
+  direction_button: process(event_1hz)
+  begin
+	if clk'event and clk = '1' then
+		if BTN_EAST = '1' then
+			led_direction<='0';
+		end if;
+		if BTN_WEST = '1' then
+		
+			led_direction<='1';
+		end if;
+		
+	end if;
+  end process direction_button;
 
   --
   ----------------------------------------------------------------------------------------------------------------------------------
