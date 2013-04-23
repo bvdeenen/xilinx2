@@ -121,7 +121,9 @@ architecture Behavioral of xilinx2 is
 -- Signals used to generate interrupt 
 --
   signal int_count       : integer range 0 to 49999999 := 0;
+  signal clk_count       : integer range 0 to 49999999 := 0;
   signal event_1hz       : std_logic;
+  signal event_10ms      : std_logic;
 --
 --
 -- Signals used to read device DNA 
@@ -203,15 +205,29 @@ begin
 
 
   encoder_a: debounce
-    port map(clk => clk,
+    port map(clk => event_10ms,
              sig_in => ROT_A,
              sig_out => ROT_A_CLEAN);
   
   encoder_b: debounce
-    port map(clk => clk,
+    port map(clk => event_10ms,
              sig_in => ROT_B,
              sig_out => ROT_B_CLEAN);
     
+  one_ms : process(clk)
+  begin
+    if clk'event and clk = '1' then
+
+      --divide 50MHz by 50,000,000 to form 1Hz pulses
+      if clk_count = 499999 then
+        clk_count <= 0;
+        event_10ms <= '1';
+      else
+        clk_count <= clk_count + 1;
+        event_10ms <= '0';
+      end if;
+    end if;
+  end process one_ms;
   --
   ----------------------------------------------------------------------------------------------------------------------------------
   -- Interrupt 
@@ -271,6 +287,12 @@ begin
     
 led(0) <= ROT_A_CLEAN;
 led(1) <= ROT_B_CLEAN;     
+led(2) <= '0';
+led(3) <= '0';
+led(4) <= '0';
+led(5) <= '0';
+led(6) <= '0';
+led(7) <= '0';
     
 --  led_light : process(event_1hz)
 --    variable l   : std_logic_vector(7 downto 0) := "00000001";

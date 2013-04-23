@@ -54,7 +54,7 @@ begin
    end if;
 end process;
  
-sig_out <= Q1 and Q2 and (not Q3);
+sig_out <= Q1 and Q2 and Q3;
  
 				
 
