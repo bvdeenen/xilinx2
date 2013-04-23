@@ -1,34 +1,4 @@
---
--- Reference design - Reading device DNA on the Spartan-3A Starter Kit.
---
--- Ken Chapman - Xilinx Ltd - 2nd January 2007
---
--- PicoBlaze is used to read the device DNA and display it on the LCD display.
---
--- 8-bit communication is possible with the LCD display on the Spartan-3A Starter Kit.
---
--- 8 LEDs provide a one second 'heart beat' counter driven by PicoBlaze interrupts.
---
-------------------------------------------------------------------------------------
---
--- NOTICE:
---
--- Copyright Xilinx, Inc. 2007.   This code may be contain portions patented by other 
--- third parties.  By providing this core as one possible implementation of a standard,
--- Xilinx is making no representation that the provided implementation of this standard 
--- is free from any claims of infringement by any third party.  Xilinx expressly 
--- disclaims any warranty with respect to the adequacy of the implementation, including 
--- but not limited to any warranty or representation that the implementation is free 
--- from claims of any third party.  Furthermore, Xilinx is providing this core as a 
--- courtesy to you and suggests that you contact all third parties to obtain the 
--- necessary rights to use this implementation.
---
-------------------------------------------------------------------------------------
---
--- Library declarations
---
--- Standard IEEE libraries
---
+
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
@@ -77,6 +47,15 @@ architecture Behavioral of xilinx2 is
     port ( sig_in  : in std_logic;
            clk     : in std_logic;
            sig_out : out std_logic);
+  end component;
+
+  component QDEC is 
+    port ( clk : in std_logic;
+      A : in std_logic;
+      B : in std_logic;
+      FWD : out std_logic;
+      REV : out std_logic;
+      MOV : out std_logic);
   end component;
 
   component kcpsm3
@@ -146,6 +125,10 @@ architecture Behavioral of xilinx2 is
   
   signal ROT_A_CLEAN  : std_logic;
   signal ROT_B_CLEAN  : std_logic;
+  
+  signal FWD : std_logic;
+  signal REV : std_logic;
+  signal MOV : std_logic;
 --
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
@@ -214,6 +197,14 @@ begin
              sig_in => ROT_B,
              sig_out => ROT_B_CLEAN);
     
+  qdec_a: QDEC port map(
+	  clk => clk,
+      A => ROT_A_CLEAN,
+      B => ROT_B_CLEAN,
+      FWD => FWD,
+      REV => REV,
+      MOV => MOV);
+
   one_ms : process(clk)
   begin
     if clk'event and clk = '1' then
@@ -265,74 +256,34 @@ begin
     end if;
   end process interrupt_control;
 
---  knob: process(clk)
---    signal rotary_in: std_logic_vector(1 downto 0) := "00";
---    variable l   : std_logic_vector(7 downto 0) := "00000001";
---    variable pos : integer                      := 0;
---    begin
---      if clk'event and clk='1' then
---        rotary_in := ROT_A_CLEAN & ROT_B_CLEAN;
---        if rotary_in="00" then
---          l := l + 1;
---        end if;
---        if ROT_A_CLEAN = '0' and ROT_B_CLEAN='0' then
---          l := l + 1;
---        end if;
---        if ROT_A_CLEAN = '1' and ROT_B_CLEAN='0' then
---          l := l - 1;
---        end if;
---        
---      end if;
---  
-    
-led(0) <= ROT_A_CLEAN;
-led(1) <= ROT_B_CLEAN;     
-led(2) <= '0';
-led(3) <= '0';
-led(4) <= '0';
-led(5) <= '0';
-led(6) <= '0';
-led(7) <= '0';
-    
---  led_light : process(event_1hz)
---    variable l   : std_logic_vector(7 downto 0) := "00000001";
---    variable pos : integer                      := 0;
---
---  begin
---    if event_1hz'event and event_1hz = '1' then
---      if led_direction = '0' then
---        if (pos = 7) then
---          pos := 0;
---        else
---          pos := pos + 1;
---        end if;
---      else
---        if (pos = 0) then
---          pos := 7;
---        else
---          pos := pos - 1;
---        end if;
---      end if;
---
---      l      := "00000000";
---      l(pos) := '1';
---      led    <= l;
---    end if;
---  end process led_light;
 
-  direction_button : process(event_1hz)
+    
+  led_light : process(clk)
+    variable l   : std_logic_vector(7 downto 0) := "00000001";
+    variable pos : integer                      := 0;
+
   begin
-    if clk'event and clk = '1' then
-      if BTN_EAST = '1' then
-        led_direction <= '0';
+    if rising_edge(clk) then
+	   if ( FWD='1' ) then
+        if (pos = 7) then
+          pos := 0;
+        else
+          pos := pos + 1;
+        end if;
+      elsif ( REV='1') then
+        if (pos = 0) then
+          pos := 7;
+        else
+          pos := pos - 1;
+        end if;
       end if;
-      if BTN_WEST = '1' then
 
-        led_direction <= '1';
-      end if;
-
+      l      := "00000000";
+      l(pos) := '1';
+      led    <= l;
     end if;
-  end process direction_button;
+  end process led_light;
+
 
   --
   ----------------------------------------------------------------------------------------------------------------------------------
