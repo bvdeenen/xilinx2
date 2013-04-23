@@ -26,7 +26,7 @@ distclean:
 	git clean -dxf
 
 
-xilinx2.ngd: picocode.vhd xilinx2.vhd
+xilinx2.ngd: picocode.vhd xilinx2.vhd debounce.vhd qdec.vhd
 	mkdir -p xst/projnav.tmp
 	xst -intstyle ise -ifn xilinx2.xst -ofn xilinx2.syr
 	ngdbuild -intstyle ise -dd _ngo -nt timestamp -uc xilinx2.ucf -p xc3s700a-fg484-4 xilinx2.ngc xilinx2.ngd

@@ -51,10 +51,12 @@ begin
          Q1 <= sig_in;
          Q2 <= Q1;
          Q3 <= Q2;
+         if ( Q1 = Q2 and Q2 = Q3) then
+            sig_out <= Q1;
+         end if;
    end if;
 end process;
  
-sig_out <= Q1 and Q2 and Q3;
  
 				
 
