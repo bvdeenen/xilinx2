@@ -7,7 +7,7 @@ picocode.svf: picocode.hex
 	dosemu hex2svf.exe picocode.hex  picocode.svf
 
 picocode.xsvf: picocode.svf
-	svf2xsvf502 -d -i picocode.svf -o picocode.xsvf
+	./XASM/svf2xsvf502 -d -i picocode.svf -o picocode.xsvf
 	
 pico: picocode.xsvf
 	impact -batch update_pb.cmd

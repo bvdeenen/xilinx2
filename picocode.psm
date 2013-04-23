@@ -451,13 +451,13 @@ display_hex_32_bit: LOAD s6, 04                         ;4 bytes to display
                     ;
                     ; Display 'Device DNA' on LCD at current cursor position
                     ;
-   disp_Device_DNA: LOAD s5, character_B
+   disp_Device_DNA: LOAD s5, character_M
                     CALL LCD_write_data
-                    LOAD s5, character_a
+                    LOAD s5, character_o
                     CALL LCD_write_data
-                    LOAD s5, character_r
+                    LOAD s5, character_b
                     CALL LCD_write_data
-                    LOAD s5, character_t
+                    LOAD s5, character_o
                     CALL LCD_write_data
                     CALL disp_space
                     ;

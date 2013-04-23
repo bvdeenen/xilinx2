@@ -1,3 +1,4 @@
 vhdl work "picocode.vhd"
 vhdl work "kcpsm3.vhd"
+vhdl work "debounce.vhd"
 vhdl work "xilinx2.vhd"
