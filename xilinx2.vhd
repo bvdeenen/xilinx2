@@ -18,9 +18,9 @@ entity xilinx2 is
   port (led      : out std_logic_vector(7 downto 0);
         BTN_EAST : in  std_logic;
         BTN_WEST : in  std_logic;
-		  ROT_A    : in  std_logic;
-		  ROT_B    : in  std_logic;
-		  
+        ROT_A    : in  std_logic;
+        ROT_B    : in  std_logic;
+        
 
         lcd_d  : inout std_logic_vector(7 downto 0);
         lcd_rs : out   std_logic;
@@ -51,11 +51,11 @@ architecture Behavioral of xilinx2 is
 
   component QDEC is 
     port ( clk : in std_logic;
-      A : in std_logic;
-      B : in std_logic;
-      FWD : out std_logic;
-      REV : out std_logic;
-      MOV : out std_logic);
+           A : in std_logic;
+           B : in std_logic;
+           FWD : out std_logic;
+           REV : out std_logic;
+           MOV : out std_logic);
   end component;
 
   component kcpsm3
@@ -196,14 +196,14 @@ begin
     port map(clk => event_10ms,
              sig_in => ROT_B,
              sig_out => ROT_B_CLEAN);
-    
+  
   qdec_a: QDEC port map(
-	  clk => clk,
-      A => ROT_A_CLEAN,
-      B => ROT_B_CLEAN,
-      FWD => FWD,
-      REV => REV,
-      MOV => MOV);
+    clk => clk,
+    A => ROT_A_CLEAN,
+    B => ROT_B_CLEAN,
+    FWD => FWD,
+    REV => REV,
+    MOV => MOV);
 
   one_ms : process(clk)
   begin
@@ -257,14 +257,14 @@ begin
   end process interrupt_control;
 
 
-    
+  
   led_light : process(clk)
     variable l   : std_logic_vector(7 downto 0) := "00000001";
     variable pos : integer                      := 0;
 
   begin
     if rising_edge(clk) then
-	   if ( FWD='1' ) then
+      if ( FWD='1' ) then
         if (pos = 7) then
           pos := 0;
         else
@@ -303,10 +303,10 @@ begin
         -- read device DNA output at address 00 hex
         when '0' => in_port <= "0000000" & dna_dout;
 
-        -- read 8-bit LCD data at address 01 hex
+                    -- read 8-bit LCD data at address 01 hex
         when '1' => in_port <= lcd_d;
 
-        -- Don't care used for all other addresses to ensure minimum logic implementation
+                    -- Don't care used for all other addresses to ensure minimum logic implementation
         when others => in_port <= "XXXXXXXX";
 
       end case;
