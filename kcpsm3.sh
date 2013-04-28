@@ -23,7 +23,7 @@ BN=${FILENAME%.psm}
 touch $TIMESTAMPFILE
 
 INPUT="\P1;  C:\r cd \\xasm\r kcpsm3 $FILENAME > $LOGFILE\r exitemu\r"
-dosemu -dumb -quiet -input "$INPUT"
+dosemu -quiet -input "$INPUT"
 
 mv $(find $UNIXPATH/ -type f -newer $TIMESTAMPFILE) .
 rm $TIMESTAMPFILE

@@ -3,6 +3,7 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.STD_LOGIC_ARITH.all;
 use IEEE.STD_LOGIC_UNSIGNED.all;
+use IEEE.numeric_std.all;
 --
 -- The Unisim Library is used to define Xilinx primitives. It is also used during
 -- simulation. The source can be viewed at %XILINX%\vhdl\src\unisims\unisim_VCOMP.vhd
@@ -26,10 +27,6 @@ entity xilinx2 is
         lcd_rs : out   std_logic;
         lcd_rw : out   std_logic;
         lcd_e  : out   std_logic;
-        j2_30  : out   std_logic;
-        j2_26  : out   std_logic;
-        j2_22  : out   std_logic;
-        j2_14  : out   std_logic;
         clk    : in    std_logic);
 end xilinx2;
 --
@@ -38,7 +35,10 @@ end xilinx2;
 -- Start of test architecture
 --
 architecture Behavioral of xilinx2 is
---
+
+  constant F_CLK      : integer := 50000000; -- Hz
+  constant F_IRQ      : integer := 20;       -- Hz
+  constant F_DEBOUNCE : integer := 1000;     -- Hz
 ------------------------------------------------------------------------------------
 --
 -- declaration of KCPSM3
@@ -102,23 +102,8 @@ architecture Behavioral of xilinx2 is
   signal int_count       : integer range 0 to 49999999 := 0;
   signal clk_count       : integer range 0 to 49999999 := 0;
   signal event_1hz       : std_logic;
-  signal event_10ms      : std_logic;
+  signal event_1kHz      : std_logic;
 --
---
--- Signals used to read device DNA 
---
-  signal dna_din         : std_logic;
-  signal dna_read        : std_logic;
-  signal dna_shift       : std_logic;
-  signal dna_dout        : std_logic;
-  signal dna_clk         : std_logic;
---
---
--- Signals for LCD operation
---
--- Tri-state output requires internal signals
--- 'lcd_drive' is used to differentiate between LCD and StrataFLASH communications 
--- which share the same data bits.
 --
   signal lcd_rw_control  : std_logic;
   signal lcd_output_data : std_logic_vector(7 downto 0);
@@ -130,6 +115,7 @@ architecture Behavioral of xilinx2 is
   signal REV : std_logic;
   signal MOV : std_logic;
 --
+  signal pos : integer range 0 to 7 := 0;
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 --
 -- Start of circuit description
@@ -137,31 +123,7 @@ architecture Behavioral of xilinx2 is
 
   signal led_direction : std_logic := '0';
 begin
-  --
-  --
-  ----------------------------------------------------------------------------------------------------------------------------------
-  -- Instantiate the device DNA primitive 
-  ----------------------------------------------------------------------------------------------------------------------------------
-  --
 
-  device_dna : dna_port
-    port map(din   => dna_din,
-             read  => dna_read,
-             shift => dna_shift,
-             dout  => dna_dout,
-             clk   => dna_clk);
-
-
-  --
-  -- Connect signals to test points on connector J2 for analysis
-  --
-
-  j2_30 <= dna_clk; 
-  j2_26 <= dna_read;
-  j2_22 <= dna_shift;
-  j2_14 <= dna_dout;
-
-  --
   ----------------------------------------------------------------------------------------------------------------------------------
   -- KCPSM3 and the program memory 
   ----------------------------------------------------------------------------------------------------------------------------------
@@ -188,12 +150,12 @@ begin
 
 
   encoder_a: debounce
-    port map(clk => event_10ms,
+    port map(clk => event_1kHz,
              sig_in => ROT_A,
              sig_out => ROT_A_CLEAN);
   
   encoder_b: debounce
-    port map(clk => event_10ms,
+    port map(clk => event_1kHz,
              sig_in => ROT_B,
              sig_out => ROT_B_CLEAN);
   
@@ -209,34 +171,24 @@ begin
   begin
     if clk'event and clk = '1' then
 
-      --divide 50MHz by 50,000,000 to form 1Hz pulses
-      if clk_count = 499999 then
+      -- 1 kHz
+      if clk_count = (F_CLK/F_DEBOUNCE-1) then
         clk_count <= 0;
-        event_10ms <= '1';
+        event_1kHz <= '1';
       else
         clk_count <= clk_count + 1;
-        event_10ms <= '0';
+        event_1kHz <= '0';
       end if;
     end if;
   end process one_ms;
-  --
-  ----------------------------------------------------------------------------------------------------------------------------------
-  -- Interrupt 
-  ----------------------------------------------------------------------------------------------------------------------------------
-  --
-  --
-  -- Interrupt is used to provide a 1 second time reference.
-  --
-  --
-  -- A simple binary counter is used to divide the 50MHz system clock and provide interrupt pulses.
-  --
+
 
   interrupt_control : process(clk)
   begin
     if clk'event and clk = '1' then
 
-      --divide 50MHz by 50,000,000 to form 1Hz pulses
-      if int_count = 49999999 then
+      --20Hz pulses
+      if int_count =  (F_CLK/F_IRQ-1) then
         int_count <= 0;
         event_1hz <= '1';
       else
@@ -258,31 +210,35 @@ begin
 
 
   
-  led_light : process(clk)
-    variable l   : std_logic_vector(7 downto 0) := "00000001";
-    variable pos : integer                      := 0;
-
+  update_position : process(clk)
   begin
     if rising_edge(clk) then
       if ( FWD='1' ) then
         if (pos = 7) then
-          pos := 0;
+          pos <= 0;
         else
-          pos := pos + 1;
+          pos <= pos + 1;
         end if;
       elsif ( REV='1') then
         if (pos = 0) then
-          pos := 7;
+          pos <= 7;
         else
-          pos := pos - 1;
+          pos <= pos - 1;
         end if;
       end if;
 
+    end if;
+  end process update_position;
+
+  set_led: process(clk)
+    variable l   : std_logic_vector(7 downto 0) := "00000001";
+  begin
+    if rising_edge(clk) then
       l      := "00000000";
       l(pos) := '1';
       led    <= l;
     end if;
-  end process led_light;
+  end process set_led;
 
 
   --
@@ -298,13 +254,13 @@ begin
   begin
     if clk'event and clk = '1' then
 
-      case port_id(0) is
+      case port_id is
 
-        -- read device DNA output at address 00 hex
-        when '0' => in_port <= "0000000" & dna_dout;
+        when "00000100" => in_port <= std_logic_vector(to_unsigned(pos, in_port'length));
+
 
                     -- read 8-bit LCD data at address 01 hex
-        when '1' => in_port <= lcd_d;
+        when "00000001" => in_port <= lcd_d;
 
                     -- Don't care used for all other addresses to ensure minimum logic implementation
         when others => in_port <= "XXXXXXXX";
@@ -330,14 +286,6 @@ begin
     if clk'event and clk = '1' then
       if write_strobe = '1' then
 
-        -- Write to LEDs at address 80 hex.
-
---        if port_id(7)='1' then
---          led <= out_port;
---        end if;
-
-        -- 8-bit LCD data output address 40 hex.
-
         if port_id(6) = '1' then
           lcd_output_data <= out_port;
         end if;
@@ -348,15 +296,6 @@ begin
           lcd_rs         <= out_port(2);
           lcd_rw_control <= out_port(1);
           lcd_e          <= out_port(0);
-        end if;
-
-        -- Control device DNA input signals at addresses 10 hex.
-
-        if port_id(4) = '1' then
-          dna_clk   <= out_port(0);
-          dna_shift <= out_port(1);
-          dna_read  <= out_port(2);
-          dna_din   <= out_port(3);
         end if;
 
       end if;
@@ -379,15 +318,9 @@ begin
   -- use read/write control to enable output buffers.
   lcd_d <= lcd_output_data when lcd_rw_control = '0' else "ZZZZZZZZ";
 
---
-----------------------------------------------------------------------------------------------------------------------------------
---
---
+
 end Behavioral;
 
-------------------------------------------------------------------------------------------------------------------------------------
---
--- END OF FILE xilinx2.vhd
---
-------------------------------------------------------------------------------------------------------------------------------------
+
+-- vim:tw=120:ts=2:expandtab
 

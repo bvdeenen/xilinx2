@@ -1,7 +1,9 @@
 all: pico
 
-picocode.mem picocode.vhd picocode.hex: picocode.psm	
-	./kcpsm3.sh picocode.psm
+#picocode.mem picocode.vhd picocode.hex: picocode.psm	
+#./kcpsm3.sh picocode.psm
+picocode.hex: picocode.psm
+	./pBlazASM -x -3 -k -v $<
 
 picocode.svf: picocode.hex
 	dosemu hex2svf.exe picocode.hex  picocode.svf

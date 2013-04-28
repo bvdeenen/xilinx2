@@ -1,34 +1,6 @@
-                    ; KCPSM3 Program - Read and display device DNA on Spartan-3A Starter Kit.
-                    ;
-                    ;
-                    ; Ken Chapman - Xilinx Ltd
-                    ;
-                    ; Version v1.00 - 2nd January 2007
-                    ;
-                    ; This program reads the Spartan-3A Device DNA value and displays it on the LCD display.
-                    ; LCD display is controlled using 8-bit data connection which is provided on the
-                    ; 3A kit (3E kit has the 4-bit connection only).
-                    ;
-                    ; The 8 LEDs provide a simple 'heart beat' counter driven by interrupts generated at
-                    ; one second intervals.
-                    ;
-                    ;
                     ;**************************************************************************************
                     ; Port definitions
                     ;**************************************************************************************
-                    ;
-                    ;
-                    ;
-                    CONSTANT LED_port, 80               ;8 simple LEDs
-                    CONSTANT LED0, 01                   ;     LED 0 - bit0
-                    CONSTANT LED1, 02                   ;         1 - bit1
-                    CONSTANT LED2, 04                   ;         2 - bit2
-                    CONSTANT LED3, 08                   ;         3 - bit3
-                    CONSTANT LED4, 10                   ;         4 - bit4
-                    CONSTANT LED5, 20                   ;         5 - bit5
-                    CONSTANT LED6, 40                   ;         6 - bit6
-                    CONSTANT LED7, 80                   ;         7 - bit7
-                    ;
                     ;
                     ;
                     ; LCD interface ports
@@ -36,33 +8,13 @@
                     ; The 8-bit communication interface can be used on the Spartan-3A Starter Kit
                     ; as all pins are connected and dedicated.
                     ;
-                    CONSTANT LCD_output_port, 40        ;LCD character module output data
-                    CONSTANT LCD_input_port, 01         ;LCD character module input data
-                    CONSTANT LCD_DB0, 01                ;   8-bit          DB4 - bit0
-                    CONSTANT LCD_DB1, 02                ;   interface      DB5 - bit1
-                    CONSTANT LCD_DB2, 04                ;                  DB6 - bit2
-                    CONSTANT LCD_DB3, 08                ;                  DB7 - bit3
-                    CONSTANT LCD_DB4, 10                ;                  DB4 - bit4
-                    CONSTANT LCD_DB5, 20                ;                  DB5 - bit5
-                    CONSTANT LCD_DB6, 40                ;                  DB6 - bit6
-                    CONSTANT LCD_DB7, 80                ;                  DB7 - bit7
-                    ;
-                    CONSTANT LCD_control_port, 20       ;LCD character module control signals
-                    CONSTANT LCD_E, 01                  ;   active High Enable        E - bit0
-                    CONSTANT LCD_RW, 02                 ;   Read=1 Write=0           RW - bit1
-                    CONSTANT LCD_RS, 04                 ;   Instruction=0 Data=1     RS - bit2
-                    ;
-                    ;
-                    ; DNA access ports
-                    ;
-                    CONSTANT DNA_control_port, 10       ; Input data and control to the DNA primitive
-                    CONSTANT DNA_clk, 01                ;      CLK - bit0
-                    CONSTANT DNA_shift, 02              ;    SHIFT - bit1
-                    CONSTANT DNA_read, 04               ;     READ - bit2
-                    CONSTANT DNA_din, 08                ;      DIN - bit3
-                    ;
-                    CONSTANT DNA_read_port, 00          ; Output data from the DNA primitive
-                    CONSTANT DNA_dout, 01               ;     DOUT - bit0
+                    CONSTANT LCD_output_port  , 40 ; LCD character module output data
+                    CONSTANT LCD_input_port   , 01 ; LCD character module input data
+
+                    CONSTANT LCD_control_port , 20 ; LCD character module control signals
+                    CONSTANT LCD_E            , 01 ; active High Enable        E - bit0
+
+                    CONSTANT READ_POS_ADDR    , 04 ; Output data from the DNA primitive
                     ;
                     ;
                     ;**************************************************************************************
@@ -77,29 +29,11 @@
                     ;
                     ;
                     CONSTANT ISR_preserve_s0, 00        ;Preserve s0 contents during ISR
-                    CONSTANT ISR_preserve_s1, 01        ;Preserve s1 contents during ISR
-                    CONSTANT ISR_preserve_s2, 02        ;Preserve s2 contents during ISR
-                    CONSTANT ISR_preserve_s3, 03        ;Preserve s3 contents during ISR
+
+                    CONSTANT POS, 10       ; byte value of pos signal in xilinx2.vhd
+					CONSTANT POS_prev, 21  ; previous isr pos value
                     ;
-                    CONSTANT LED_pattern, 04            ;remember state of LEDs (8-bit counter in this case)
-                    ;
-                    ;
-                    ; 57-bit DNA value stored as 8-bytes
-                    ;    Value is actually read MSB first although this is only convention.
-                    ;    First 2 bits read will appear as '1' and '0' therefore
-                    ;       bit[56]='1' and bit[55]='0' is a way to verify a read operation.
-                    ;    The remaining 55-bits are a unique sequence for each device.
-                    ;
-                    ;
-                    CONSTANT DNA_byte0, 10              ; bits[7:0]
-                    CONSTANT DNA_byte1, 11              ; bits[15:8]
-                    CONSTANT DNA_byte2, 12              ; bits[23:16]
-                    CONSTANT DNA_byte3, 13              ; bits[31:24]
-                    CONSTANT DNA_byte4, 14              ; bits[39:32]
-                    CONSTANT DNA_byte5, 15              ; bits[47:40]
-                    CONSTANT DNA_byte6, 16              ; bits[55:48]     Should be "0xxxxxxx"
-                    CONSTANT DNA_byte7, 17              ; bit[56]         Should be "00000001"
-                    ;
+					CONSTANT semaphore, 20 ; isr semaphore
                     ;
                     ;**************************************************************************************
                     ; Useful data constants
@@ -212,12 +146,10 @@
                     ;**************************************************************************************
                     ;
         cold_start: LOAD s0, 00                         ;clear 1 second counter and clear LEDs
-                    STORE s0, LED_pattern
-                    OUTPUT s0, LED_port
+					STORE s0, semaphore
                     ;
                     ENABLE INTERRUPT                    ;enable one second heart beat
                     ;
-                    CALL DNA_init                       ;Clear DNA port control signals
                     CALL LCD_reset                      ;initialise LCD display
                     ;
                     ;**************************************************************************************
@@ -228,123 +160,47 @@
                     ;
       main_program: LOAD s5, 10                         ;Line 1 position 0
                     CALL LCD_cursor
-                    CALL disp_DNA                       ;Display 'DNA Reader'
-                    CALL disp_space
-                    CALL disp_Reader
                     LOAD s5, 22                         ;Line 2 position 2
                     CALL LCD_cursor
-                    CALL disp_Ken_Chapman               ;Display 'by Ken Chapman'
-                    ;
-        wait_16sec: FETCH s0, LED_pattern               ;Wait for 16 seconds to elapse
-                    AND s0, 0F                          ;Check lower 4 bits of heart beat counter only
-                    COMPARE s0, 0A                      ;Wait 10 seonds first time then repeat every 16 seconds
-                    JUMP NZ, wait_16sec
-                    ;
-                    ; Read DNA value and display
-                    ;
-                    CALL read_device_DNA                ;read device DNA into scratch pad memory
                     CALL disp_DNA_value                 ;display DNA value
-                    CALL delay_1s                       ;software delay to ensure heart beat counter has advanced
-                    CALL delay_1s
-                    JUMP wait_16sec                     ;repeat read operation to facilitate probing of signals
-                    ;
-                    ; Note that DNA has a specified minimum lifetime of 10 years or 30,000,000 read cycles.
-                    ; Reading at 16 second intervals equates to over 15 years continuous operation.
-                    ;
-                    ;**************************************************************************************
-                    ; Read Device DNA into scratch pad memory
-                    ;**************************************************************************************
-                    ;
-                    ; Initalisation ensures that all control signals are Low.
-                    ;
-          DNA_init: LOAD s0, 00                         ;clear all control signals
-                    OUTPUT s0, DNA_control_port
-                    RETURN
-                    ;
-                    ;
-                    ;
-                    ; To read the DNA the following sequence is required...
-                    ;
-                    ;   READ = 1
-                    ;   clock pulse (High then Low).  This transfers the DNA value into the shift register
-                    ;                                 Bit 57 will be presented on DOUT (should be '1')
-                    ;
-                    ;   SHIFT = 1
-                    ;   read the DOUT value.   Bits are read MSB first starting with fixed bits "10"
-                    ;   clock pulse (High then Low). Advances shift register to the next bit
-                    ;
-                    ; After 57 repetitions with SHIFT=1 complete DNA value will be acquired.
-                    ; The values of DIN applied during each clock cycle with SHIFT=1 will be shifted into the DNA
-                    ; shift register and would the appear at DOUT if the shift operations continue without a new
-                    ; read cycle.
-                    ;
-                    ; Registers used: s0,s1,s2,s3,s4,s5,s6,s7,s8,s9,sA
-                    ;
-   read_device_DNA: LOAD s0, DNA_read                   ;Transfer DNA into shift register
-                    OUTPUT s0, DNA_control_port
-                    CALL DNA_clk_pulse
-                    LOAD s0, DNA_shift                  ;prepare to shift value
-                    OUTPUT s0, DNA_control_port
-                    LOAD s3, 00                         ;clear bits of result register that will not be overwritten by shifting
-                    LOAD s2, 39                         ;57-bits to read DNA value only
-     read_DNA_loop: INPUT s1, DNA_read_port             ;read data bit
-                    TEST s1, DNA_dout                   ;isolate data bit (put into carry flag)
-                    SLA s3                              ;shift data bit into lsb of register set [sA,s9,s8,s7,s6,s5,s4,s3] <- carry
-                    SLA s4
-                    SLA s5
-                    SLA s6
-                    SLA s7
-                    SLA s8
-                    SLA s9
-                    SLA sA
-                    CALL DNA_clk_pulse                  ;advance DNA shift register ready to read next DNA bit
-                    SUB s2, 01                          ;count bits read
-                    JUMP Z, store_DNA
-                    JUMP read_DNA_loop
-         store_DNA: STORE s3, DNA_byte0
-                    STORE s4, DNA_byte1
-                    STORE s5, DNA_byte2
-                    STORE s6, DNA_byte3
-                    STORE s7, DNA_byte4
-                    STORE s8, DNA_byte5
-                    STORE s9, DNA_byte6
-                    STORE sA, DNA_byte7
-                    JUMP DNA_init
-                    ;
-                    ;Generate clock pulse to DNA port
-                    ;
-     DNA_clk_pulse: XOR s0, DNA_clk                     ;CLK=1
-                    OUTPUT s0, DNA_control_port
-                    XOR s0, DNA_clk                     ;CLK=0
-                    OUTPUT s0, DNA_control_port
-                    RETURN
-                    ;
-                    ;
-                    ;**************************************************************************************
-                    ; Display DNA vale on LCD display
-                    ;**************************************************************************************
-                    ;
-                    ; Read the 8-bytes from scratch pad memory and display on the LCD display as hexadecimal.
-                    ;
-    disp_DNA_value: CALL LCD_clear                      ;clear screen
-                    LOAD s5, 13                         ;Line 1 position 3
-                    CALL LCD_cursor
-                    CALL disp_Device_DNA
+        main_loop  : 
+					FETCH s0, semaphore
+					COMPARE s0, 01
+					JUMP Z, continue
+
+                    CALL read_device_DNA                ;read device DNA into scratch pad memory
+
+					FETCH s0, POS
+					FETCH s1, POS_prev
+					COMPARE s0, s1
+					JUMP Z, continue
+					STORE s0, POS_prev
+
+                    CALL disp_DNA_value                 ;display DNA value
+
+       continue :   CALL delay_1ms                      ;software delay to ensure heart beat counter has advanced
+					LOAD s0, 00
+					STORE s0, semaphore
+                    JUMP main_loop                      ;repeat read operation to facilitate probing of signals
+
+   read_device_DNA: 
+     				INPUT s1, READ_POS_ADDR             ;read data bit
+					ADD s1,80
+         			STORE s1, POS
+					RETURN
+
+    disp_DNA_value: 
                     LOAD s5, 20                         ;Line 2 position 0
                     CALL LCD_cursor
-                    CALL delay_1s                       ;wait 1 second
-                    LOAD s9, DNA_byte7                  ;pointer to scratch pad memory
-     disp_DNA_loop: FETCH s0, (s9)                      ;read byte from memory
+     				FETCH s0, POS
                     CALL hex_byte_to_ASCII              ;convert value to ASCII characters in s3 and s2.
                     LOAD s8, s2                         ;remember second character
                     LOAD s5, s3                         ;display upper nibble character
                     CALL LCD_write_data
                     LOAD s5, s8                         ;display lower nibble character
                     CALL LCD_write_data
-                    COMPARE s9, DNA_byte0               ;test for last byte displayed
-                    RETURN Z
-                    SUB s9, 01                          ;move to next byte
-                    JUMP disp_DNA_loop
+                    RETURN 
+
                     ;
                     ;
                     ;
@@ -431,63 +287,6 @@ display_hex_32_bit: LOAD s6, 04                         ;4 bytes to display
         disp_space: LOAD s5, character_space
                     CALL LCD_write_data
                     RETURN
-                    ;
-                    ; Display 'by Ken Chapman' on LCD at current cursor position
-                    ;
-  disp_Ken_Chapman: LOAD s5, character_b
-                    CALL LCD_write_data
-                    LOAD s5, character_y
-                    CALL LCD_write_data
-                    CALL disp_space
-                    LOAD s5, character_M
-                    CALL LCD_write_data
-                    LOAD s5, character_o
-                    CALL LCD_write_data
-                    LOAD s5, character_j
-                    CALL LCD_write_data
-                    LOAD s5, character_o
-                    CALL LCD_write_data
-                    RETURN
-                    ;
-                    ; Display 'Device DNA' on LCD at current cursor position
-                    ;
-   disp_Device_DNA: LOAD s5, character_M
-                    CALL LCD_write_data
-                    LOAD s5, character_o
-                    CALL LCD_write_data
-                    LOAD s5, character_b
-                    CALL LCD_write_data
-                    LOAD s5, character_o
-                    CALL LCD_write_data
-                    CALL disp_space
-                    ;
-                    ; Display 'DNA' on LCD at current cursor position
-                    ;
-          disp_DNA: LOAD s5, character_D
-                    CALL LCD_write_data
-                    LOAD s5, character_N
-                    CALL LCD_write_data
-                    LOAD s5, character_A
-                    CALL LCD_write_data
-                    RETURN
-                    ;
-                    ; Display 'Reader' on LCD at current cursor position
-                    ;
-       disp_Reader: LOAD s5, character_R
-                    CALL LCD_write_data
-                    LOAD s5, character_e
-                    CALL LCD_write_data
-                    LOAD s5, character_a
-                    CALL LCD_write_data
-                    LOAD s5, character_d
-                    CALL LCD_write_data
-                    LOAD s5, character_e
-                    CALL LCD_write_data
-                    LOAD s5, character_r
-                    CALL LCD_write_data
-                    RETURN
-                    ;
-                    ;
                     ;
                     ;
                     ;**************************************************************************************
@@ -728,10 +527,10 @@ display_hex_32_bit: LOAD s6, 04                         ;4 bytes to display
                     ; on the 8 LEDs.
                     ;
                ISR: STORE s0, ISR_preserve_s0           ;preserve register
-                    FETCH s0, LED_pattern               ;read current counter value
-                    ADD s0, 01                          ;increment counter
-                    STORE s0, LED_pattern               ;store new counter value
-                    OUTPUT s0, LED_port                 ;display counter value on LEDs
+
+					LOAD s0, 01
+					STORE s0, semaphore
+
                     FETCH s0, ISR_preserve_s0           ;restore register
                     RETURNI ENABLE
                     ;

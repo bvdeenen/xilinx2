@@ -58,10 +58,6 @@ NET "lcd_d<7>" LOC = "Y15"  |IOSTANDARD = LVTTL |SLEW = SLOW |DRIVE = 2;
 #
 # Test points using J2 connector pins for convenience
 #
-NET "j2_30"   LOC = "A11"  |IOSTANDARD = LVTTL |SLEW = SLOW |DRIVE = 4;
-NET "j2_26"   LOC = "C10"  |IOSTANDARD = LVTTL |SLEW = SLOW |DRIVE = 4;
-NET "j2_22"   LOC = "A8"   |IOSTANDARD = LVTTL |SLEW = SLOW |DRIVE = 4;
-NET "j2_14"   LOC = "A6"   |IOSTANDARD = LVTTL |SLEW = SLOW |DRIVE = 4;
 #
 # End of File
 #
