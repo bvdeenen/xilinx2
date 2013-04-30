@@ -1,15 +1,27 @@
 all: pico
 
-#picocode.mem picocode.vhd picocode.hex: picocode.psm	
-#./kcpsm3.sh picocode.psm
-picocode.hex: picocode.psm
-	./pBlazASM -x -3 -k -v $<
+.SUFFIXES: .psm .mem .vhd .scr
 
-picocode.svf: picocode.hex
-	dosemu hex2svf.exe picocode.hex  picocode.svf
 
-picocode.xsvf: picocode.svf
-	./XASM/svf2xsvf502 -d -i picocode.svf -o picocode.xsvf
+
+
+TEMPLATE:= ./XASM/ROM_form.vhd
+
+%.hex: %.psm
+	./pBlazASM -3 -v -x $<
+
+%.mem %.scr %.lst: %.psm
+	./pBlazASM -3 -v -l$*.lst -m$*.mem -s$*.scr $<
+
+# -s$*.scr only when we've preloaded data in the scratchpad
+%.vhd: %.mem %.scr
+	./pBlazMRG -v -s$*.scr -e$* -c$*.mem -t${TEMPLATE} $@
+
+%.svf: %.hex
+	dosemu hex2svf.exe $*.hex  $*.svf
+
+%.xsvf: %.svf
+	./XASM/svf2xsvf502 -d -i $*.svf -o $*.xsvf
 	
 pico: picocode.xsvf
 	impact -batch update_pb.cmd
